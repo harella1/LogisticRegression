@@ -9,6 +9,17 @@
 
 #include <stdio.h>
 #include <tchar.h>
+#include <stdlib.h>
+#include <vector>
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <sstream>
+#include <numeric>
+#include <unordered_map>
+#include <algorithm>
+#include <iterator>
+using matrix = std::vector<std::vector<double>>;
 
 
 
