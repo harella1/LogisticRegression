@@ -23,11 +23,40 @@ using namespace Utils;
 
 bool debug = true;
 const double e = 2.718281828;
+// the convergence rate
+const double epsilon = 0.00001;
+// the learning rate
+const double alpha = 0.00005;
+
+const int training_size = 300;
 
 //
 double sigmoid(double x) {
 	return 1.0 / (1.0 + pow(e, -x));
 }
+
+//cost function
+// J(teta) = 1/m * sum( y(i)*log(sig(sum(teta(j)*x(i,j)) + (1-y(i)*log(1-sig(sum(teta(j)*x(i,j)) )
+double cost(const vector<double>& Teta, const vector<double>& y, const matrix& x)
+{
+	double sum = 0.0;
+	for (size_t i = 0; i < y.size(); i++)
+	{
+		auto z_i = inner_product(cbegin(Teta), cend(Teta), cbegin(x[i]), 0.0);
+		double z_i2 = 0.0;
+		//for (size_t j = 0; j<Teta.size(); ++j) 
+		//	z_i2 += Teta[j] * x[i][j];
+		auto sig = sigmoid(z_i);
+		auto first = -y[i] * log(sig+epsilon);
+		auto second = (1-y[i]) * log(1- sig + epsilon);
+		sum += first - second;
+	}
+	auto res = sum / y.size();
+	return res;
+}
+
+
+
 
 
 // target: max the gradient of the log-likehood with respect to the kth Teta:
@@ -37,76 +66,60 @@ double sigmoid(double x) {
 // teta(k)(t+1) = teta(k)(t) + alpha * gra
 void lr_without_regularization(const matrix& x,	const vector<double>& y) {
 
-	// the convergence rate
-	double epsilon = 0.00001;
-	// the learning rate
-	double alpha = 0.00005;
 	int max_iters = 2000;
 	int iter = 0;
 
 	// init
 	vector<double> Teta_k(x[0].size());
-	fill(begin(Teta_k), end(Teta_k), 1);
+	fill(begin(Teta_k), end(Teta_k), 0);
 
-	cout << "old Teta: " << Teta_k << endl;
-
-	vector<double> Teta_k_plus_1(x[0].size());
-	fill(begin(Teta_k_plus_1), end(Teta_k_plus_1), 1);
-
-	cout << "new Teta: " << Teta_k_plus_1 << endl;
+	//cout << "new Teta: " << Teta_k_plus_1 << endl;
+	auto step_cost = cost(Teta_k, y, x);
+	cout << "the cost of the first step: " << step_cost << endl;
 
 	while (true) {
 		// update each Teta
-		double cost = 0;
-		for (size_t k = 0; k<Teta_k_plus_1.size(); ++k) {
+		for (size_t k = 0; k<Teta_k.size(); ++k) {
 			double gradient = 0;
-			for (size_t i = 0; i<x.size(); ++i) {
+			for (size_t i = 0; i<training_size; ++i) {
+				//auto z_i = inner_product(cbegin(Teta_k), cend(Teta_k), cbegin(x[i]), 0.0);
 				double z_i = 0;
 				for (size_t j = 0; j<Teta_k.size(); ++j) {
-#if 0
-					cout << "x(i,j):" << x(i, j) << endl;
-					cout << "weight_old(j):" << weight_old(j) << endl;
-#endif
 					z_i += Teta_k[j] * x[i][j];
 				}
-#if 0
-				cout << "z_i:" << z_i << endl;
-				cout << "y(i):" << y(i) << endl;
-				cout << "x(i,k)" << x(i, k) << endl;
-				cout << "sigmoid(-y(i) * z_i)" << sigmoid(-y(i) * z_i) << endl;
-#endif
+
 				auto sig = sigmoid(z_i);
-				gradient = y[i] - x[i][k] * sig;
-				cost += pow(sig - y[i], 2);
+				gradient += (sig - y[i])*x[i][k];
 			}
-			Teta_k_plus_1[k] = Teta_k[k] + alpha * gradient;
+			gradient /= x.size();
+			Teta_k[k] = Teta_k[k] + alpha * gradient;
 		}
 
-		double dist = norm(Teta_k_plus_1, Teta_k);
-		if (dist < epsilon) {
-			cout << "the best weight: " << Teta_k_plus_1 << endl;
-			break;
-		}
-		else {
-			Teta_k.swap(Teta_k_plus_1);
-			// weight_old = weight_new;
-		}
+		//double dist = norm(Teta_k_plus_1, Teta_k);
+		//if (dist < epsilon) {
+		//	cout << "the best weight: " << Teta_k_plus_1 << endl;
+		//	break;
+		//}
+		//else {
+		//	Teta_k.swap(Teta_k_plus_1);
+		//	// weight_old = weight_new;
+		//}
 
 		iter += 1;
 		if (iter >= max_iters) {
 			cout << "Reach max_iters=" << max_iters << endl;
 			break;
 		}
-
+		auto step_cost = cost(Teta_k, y, x);
 		cout << "================================================" << endl;
 		cout << "The " << iter << " th iteration, weight:" << endl;
-		cout << Teta_k_plus_1 << endl << endl;
-		cout << "the diff between the old weight and the new weight: " << dist << endl;
-		cout << "the cost of the new weight: " << 0.5*cost << endl ;
+		cout << Teta_k << endl << endl;
+		//cout << "the diff between the old weight and the new weight: " << dist << endl;
+		cout << "the cost of the new step: " << step_cost << endl ;
 	}
 
 	cout << "The best weight:" << endl;
-	cout << Teta_k_plus_1 << endl;
+	cout << Teta_k << endl;
 }
 
 int main(int argc, char* argv[]) {
@@ -114,9 +127,6 @@ int main(int argc, char* argv[]) {
 		cout << "Usage: " << argv[0] << " data_file" << endl;
 		return -1;
 	}
-
-	const int record_num = 270;
-	const int dim_num = 13 + 1;
 
 	vector<double> y;// (record_num);
 	matrix x;// (record_num, vector<double>(dim_num));
