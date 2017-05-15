@@ -146,6 +146,7 @@ int main(int argc, char* argv[]) {
 	// the learning rate
 	double alpha = 2.5;
 	// lr_method
+	cout << "Iterations for each test: " << max_iters << "\n";
 	for (; alpha > 0.5; alpha-=0.3)
 	{
 		cout << "alpha: " << alpha << endl;
