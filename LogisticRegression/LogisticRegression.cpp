@@ -3,18 +3,6 @@
 
 #include "stdafx.h"
 #include "Utils.h"
-//#include <boost/numeric/ublas/vector.hpp>
-//#include <boost/numeric/ublas/matrix.hpp>
-//#include <boost/numeric/ublas/io.hpp>
-//
-//#include <boost/random/mersenne_twister.hpp>
-//#include <boost/random/uniform_int.hpp>
-//
-//// refer to matrix row
-//#include <boost/numeric/ublas/matrix_proxy.hpp>
-//
-//#include "util.hpp"
-//#include "data_loader.hpp"
 
 
 using namespace std;
@@ -26,7 +14,7 @@ const double e = 2.718281828;
 // the convergence rate
 const double epsilon = 0.00001;
 // the learning rate
-const double alpha = 0.00005;
+const double alpha = 0.5;
 
 const int training_size = 300;
 
@@ -35,6 +23,14 @@ double sigmoid(double x) {
 	return 1.0 / (1.0 + pow(e, -x));
 }
 
+
+vector<double> h_teta_x(const matrix& x, const vector<double>& teta)
+{
+	vector<double> res(teta.size());
+	for (size_t i = 0; i < teta.size(); i++)
+		res[i] = sigmoid(inner_product(cbegin(teta), cend(teta), cbegin(x[i]), 0.0));
+	return res;
+}
 //cost function
 // J(teta) = 1/m * sum( y(i)*log(sig(sum(teta(j)*x(i,j)) + (1-y(i)*log(1-sig(sum(teta(j)*x(i,j)) )
 double cost(const vector<double>& Teta, const vector<double>& y, const matrix& x)
@@ -42,13 +38,9 @@ double cost(const vector<double>& Teta, const vector<double>& y, const matrix& x
 	double sum = 0.0;
 	for (size_t i = 0; i < y.size(); i++)
 	{
-		auto z_i = inner_product(cbegin(Teta), cend(Teta), cbegin(x[i]), 0.0);
-		double z_i2 = 0.0;
-		//for (size_t j = 0; j<Teta.size(); ++j) 
-		//	z_i2 += Teta[j] * x[i][j];
-		auto sig = sigmoid(z_i);
-		auto first = -y[i] * log(sig+epsilon);
-		auto second = (1-y[i]) * log(1- sig + epsilon);
+		auto h_teta = sigmoid(inner_product(cbegin(Teta), cend(Teta), cbegin(x[i]), 0.0));
+		auto first = -y[i] * log(h_teta +epsilon);
+		auto second = (1-y[i]) * log(1- h_teta + epsilon);
 		sum += first - second;
 	}
 	auto res = sum / y.size();
@@ -94,16 +86,6 @@ void lr_without_regularization(const matrix& x,	const vector<double>& y) {
 			gradient /= x.size();
 			Teta_k[k] = Teta_k[k] + alpha * gradient;
 		}
-
-		//double dist = norm(Teta_k_plus_1, Teta_k);
-		//if (dist < epsilon) {
-		//	cout << "the best weight: " << Teta_k_plus_1 << endl;
-		//	break;
-		//}
-		//else {
-		//	Teta_k.swap(Teta_k_plus_1);
-		//	// weight_old = weight_new;
-		//}
 
 		iter += 1;
 		if (iter >= max_iters) {

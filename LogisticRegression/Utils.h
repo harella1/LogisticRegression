@@ -24,17 +24,21 @@ namespace Utils {
 			return minus * minus;
 		});
 		return sqrt(sum);
-		//assert(v1.size() == v2.size());
-		//double sum = 0;
-		//for (size_t i = 0; i<v1.size(); ++i)
-		//{
-		//	double minus = v1[i] - v2[i];
-		//	double r = minus * minus;
-		//	sum += r;
-		//}
-
-		//return sqrt(sum);
 	}
+
+	inline void normalize_data(matrix& x)
+	{
+		vector<std::pair<double, double>> min_max(x.size());
+		std::fill(begin(min_max), end(min_max), std::make_pair(0, 0));
+		for (size_t i = 0; i < x.size(); i++)
+		{
+			for (size_t j = 0; j < x[i].size(); j++)
+			{
+
+			}
+		}
+	}
+
 	template<typename T>
 	inline bool load_file(string csv_file, vector<T>& y, matrix& x)
 	{
