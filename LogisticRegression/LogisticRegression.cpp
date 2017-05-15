@@ -39,7 +39,7 @@ double sigmoid(double x) {
 // J(teta) = 1/m * sum( y(i)*log(sig(sum(teta(j)*x(i,j)) + (1-y(i)*log(1-sig(sum(teta(j)*x(i,j)) )
 double cost(const vector<double>& Teta, const vector<double>& y, const matrix& x)
 {
-	double sum = 0.0;
+	vector<double> diffs (y.size());
 	for (size_t i = 0; i < y.size(); i++)
 	{
 		auto z_i = inner_product(cbegin(Teta), cend(Teta), cbegin(x[i]), 0.0);
@@ -49,8 +49,10 @@ double cost(const vector<double>& Teta, const vector<double>& y, const matrix& x
 		auto sig = sigmoid(z_i);
 		auto first = -y[i] * log(sig+epsilon);
 		auto second = (1-y[i]) * log(1- sig + epsilon);
-		sum += first - second;
+		diffs[i] = first - second;
 	}
+	double sum = 0.0;
+	for (auto x : diffs) sum += x;
 	auto res = sum / y.size();
 	return res;
 }
@@ -60,7 +62,7 @@ double cost(const vector<double>& Teta, const vector<double>& y, const matrix& x
 
 
 // target: max the gradient of the log-likehood with respect to the kth Teta:
-// gra = sum{y(i)-f(teta(k) * x(i)(k)}, where f(x) = 1/1+e**(-x),
+// gra = sum{y(i)-sig(teta(k) * x(i)(k)}, where sig(x) = 1/1+e**(-x),
 // where i denotes the ith training row and k denotes the kth feature.
 // Then we know how to update the teta in each iteration:
 // teta(k)(t+1) = teta(k)(t) + alpha * gra
