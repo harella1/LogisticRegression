@@ -11,7 +11,7 @@ namespace Utils {
 	template <typename T>
 	ostream& operator <<(ostream& out, const vector<T>& input)
 	{
-		std::for_each(cbegin(input), cend(input), [&](T elem) { out << elem << " ";});
+		std::for_each(cbegin(input), cend(input), [&](T elem) { out << elem << ",";});
 		return out;
 	}
 
@@ -28,15 +28,24 @@ namespace Utils {
 
 	inline void normalize_data(matrix& x)
 	{
-		vector<std::pair<double, double>> min_max(x.size());
-		std::fill(begin(min_max), end(min_max), std::make_pair(0, 0));
+		matrix x_T(x[0].size());
+		std::fill(begin(x_T), end(x_T), vector<double>(x.size()));
 		for (size_t i = 0; i < x.size(); i++)
-		{
 			for (size_t j = 0; j < x[i].size(); j++)
-			{
+				x_T[j][i] = x[i][j];
 
-			}
+		vector<std::pair<double, double>> min_max(x[0].size());
+//		std::fill(begin(min_max), end(min_max), std::make_pair(0, 0));
+		for (size_t i = 1; i < x_T.size(); i++)
+		{
+			auto x = minmax_element(cbegin(x_T[i]), cend(x_T[i]));
+			min_max[i] = std::make_pair(*x.first, *x.second);
 		}
+
+		for (size_t i = 0; i < x.size(); i++)
+			for (size_t j = 1; j < x[i].size(); j++)
+				x[i][j] = (x[i][j]-min_max[j].first)/(min_max[j].second - min_max[j].first);
+
 	}
 
 	template<typename T>
@@ -47,17 +56,19 @@ namespace Utils {
 		for (std::string line; std::getline(csv, line); )
 		{
 			std::replace(line.begin(), line.end(), ',', ' ');
-			std::istringstream in(line);
+			std::stringstream in(line);
 			in >> c;
 			if (c == 'M')
 				y.push_back(0);
 			else
 				y.push_back(1);
+			std::stringstream in2;
+			in2 << "1 " << in.rdbuf();
 			x.push_back(
-				std::vector<double>(std::istream_iterator<double>(in),
+				std::vector<double>(std::istream_iterator<double>(in2),
 					std::istream_iterator<double>()));
 		}
-
+		normalize_data(x);
 		//csv.clear();
 		//csv.seekg(0, ios::beg);
 

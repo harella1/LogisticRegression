@@ -13,10 +13,10 @@ bool debug = true;
 const double e = 2.718281828;
 // the convergence rate
 const double epsilon = 0.00001;
-// the learning rate
-const double alpha = 0.5;
 
 const int training_size = 300;
+const int max_iters = 500;
+matrix results;
 
 //
 double sigmoid(double x) {
@@ -35,25 +35,34 @@ vector<double> h_teta_x(const matrix& x, const vector<double>& teta)
 // J(teta) = 1/m * sum( y(i)*log(sig(sum(teta(j)*x(i,j)) + (1-y(i)*log(1-sig(sum(teta(j)*x(i,j)) )
 double cost(const vector<double>& Teta, const vector<double>& y, const matrix& x)
 {
-	vector<double> diffs (y.size());
+	double sum = 0.0;
 	for (size_t i = 0; i < y.size(); i++)
 	{
-		auto z_i = inner_product(cbegin(Teta), cend(Teta), cbegin(x[i]), 0.0);
 		double z_i2 = 0.0;
-		//for (size_t j = 0; j<Teta.size(); ++j) 
-		//	z_i2 += Teta[j] * x[i][j];
-		auto sig = sigmoid(z_i);
-		auto first = -y[i] * log(sig+epsilon);
-		auto second = (1-y[i]) * log(1- sig + epsilon);
-		diffs[i] = first - second;
+		for (size_t j = 0; j<Teta.size(); ++j) 
+			z_i2 += Teta[j] * x[i][j];
+		auto sig = sigmoid(z_i2);
+		sum += y[i] == 1 ? log(sig+epsilon) : log(1- sig + epsilon);
 	}
-	double sum = 0.0;
-	for (auto x : diffs) sum += x;
-	auto res = sum / y.size();
+	auto res = -sum / y.size();
 	return res;
 }
 
+double predict(const vector<double>& Teta, const matrix& x, const vector<double>& y, size_t start, size_t end) {
+	if (end < start) return 0;
+	auto matches = 0.0;
+	for (size_t i = start; i < end; i++)
+	{
+		double z_i2 = 0.0;
+		for (size_t j = 0; j < Teta.size(); ++j)
+			z_i2 += Teta[j] * x[i][j];
+		auto sig = sigmoid(z_i2);
+		if ((sig >= 0.5) && y[i] == 1 || sig < 0.5 && y[i] == 0)
+			matches++;
+	}
+	return matches / (end - start);
 
+}
 
 
 
@@ -62,9 +71,9 @@ double cost(const vector<double>& Teta, const vector<double>& y, const matrix& x
 // where i denotes the ith training row and k denotes the kth feature.
 // Then we know how to update the teta in each iteration:
 // teta(k)(t+1) = teta(k)(t) + alpha * gra
-void lr_without_regularization(const matrix& x,	const vector<double>& y) {
+const vector<double> lr_without_regularization(const matrix& x,	const vector<double>& y, double alpha) {
+	vector<double> costs(max_iters+3);
 
-	int max_iters = 2000;
 	int iter = 0;
 
 	// init
@@ -73,41 +82,51 @@ void lr_without_regularization(const matrix& x,	const vector<double>& y) {
 
 	//cout << "new Teta: " << Teta_k_plus_1 << endl;
 	auto step_cost = cost(Teta_k, y, x);
-	cout << "the cost of the first step: " << step_cost << endl;
+	//cout << "the cost of the first step: " << step_cost << endl;
 
 	while (true) {
 		// update each Teta
 		for (size_t k = 0; k<Teta_k.size(); ++k) {
 			double gradient = 0;
 			for (size_t i = 0; i<training_size; ++i) {
-				//auto z_i = inner_product(cbegin(Teta_k), cend(Teta_k), cbegin(x[i]), 0.0);
 				double z_i = 0;
 				for (size_t j = 0; j<Teta_k.size(); ++j) {
 					z_i += Teta_k[j] * x[i][j];
 				}
 
 				auto sig = sigmoid(z_i);
-				gradient += (sig - y[i])*x[i][k];
+				gradient += (y[i] -sig)*x[i][k];
 			}
 			gradient /= x.size();
 			Teta_k[k] = Teta_k[k] + alpha * gradient;
 		}
-
+		auto cur_cost = cost(Teta_k, y, x);
+		auto dist = step_cost - cur_cost;
+		step_cost = cur_cost;
+		costs[iter+3] = step_cost;
 		iter += 1;
 		if (iter >= max_iters) {
-			cout << "Reach max_iters=" << max_iters << endl;
+			//cout << "Reach max_iters=" << max_iters << endl;
 			break;
 		}
-		auto step_cost = cost(Teta_k, y, x);
-		cout << "================================================" << endl;
-		cout << "The " << iter << " th iteration, weight:" << endl;
-		cout << Teta_k << endl << endl;
-		//cout << "the diff between the old weight and the new weight: " << dist << endl;
-		cout << "the cost of the new step: " << step_cost << endl ;
-	}
 
-	cout << "The best weight:" << endl;
-	cout << Teta_k << endl;
+		//cout << "================================================" << endl;
+		//cout << "The " << iter << " th iteration, cost:" << step_cost << endl;
+		////cout << Teta_k << endl << endl;
+		//cout << "the diff : " << std::fixed << std::setw(11)
+		//	<< std::setprecision(6) <<dist << endl;
+		//cout << "the cost of the new step: "  endl ;
+	}
+	auto error1 = predict(Teta_k, x, y, training_size, y.size());
+	auto error2 = predict(Teta_k, x, y, 0, training_size);
+	costs[0] = alpha;
+	costs[1] = error1;
+	costs[2] = error2;
+
+	//cout << "Error on test input:" << error1 << endl;
+	//cout << "Error on train input:" << error2 << endl;
+	//cout << Teta_k << endl;
+	return costs;
 }
 
 int main(int argc, char* argv[]) {
@@ -116,12 +135,27 @@ int main(int argc, char* argv[]) {
 		return -1;
 	}
 
-	vector<double> y;// (record_num);
-	matrix x;// (record_num, vector<double>(dim_num));
+	vector<double> y;
+	matrix x;
 	load_file(argv[1], y, x);
 
-	// lr_method
-	lr_without_regularization(x, y);
+	results.push_back(vector<double>(max_iters+3));
+	int i = -2;
+	generate(begin(results[0]), end(results[0]), [&] {return i++; });
 
+	// the learning rate
+	double alpha = 2.5;
+	// lr_method
+	for (; alpha > 0.5; alpha-=0.3)
+	{
+		cout << "alpha: " << alpha << endl;
+		auto t1 = chrono::steady_clock::now();
+		results.push_back( lr_without_regularization(x, y, alpha));
+		auto t2 = chrono::steady_clock::now();
+		cout << "duration: " << std::chrono::duration<double>( t2 - t1).count() << "ms\n";
+	}
+	ofstream output("output.csv");
+	for(auto& vec: results)
+		output << vec << "\n";
 	return 0;
 }
