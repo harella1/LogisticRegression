@@ -64,8 +64,6 @@ double predict(const vector<double>& Teta, const matrix& x, const vector<double>
 
 }
 
-
-
 // target: max the gradient of the log-likehood with respect to the kth Teta:
 // gra = sum{y(i)-sig(teta(k) * x(i)(k)}, where sig(x) = 1/1+e**(-x),
 // where i denotes the ith training row and k denotes the kth feature.
@@ -129,7 +127,38 @@ const vector<double> lr_without_regularization(const matrix& x,	const vector<dou
 	return costs;
 }
 
+
+void select_significant_features(const matrix& x, const vector<double>& y, int num_of_features) {
+
+	auto x_T = transpose(x);
+
+	matrix f;
+	f.push_back(x_T[0]);
+	for (size_t i = 1; i <= num_of_features; i++)
+	{
+		f.resize(i + 1);
+		auto t1 = chrono::steady_clock::now();
+		for (size_t j = 1; j < x_T.size(); j++)
+		{
+			f[i] = x_T[j];
+			auto f_vec = transpose(f);
+			results.push_back(lr_without_regularization(f_vec, y, 0.8));
+		}
+		cout << "duration: " << std::chrono::duration<double>(chrono::steady_clock::now() - t1).count() << " sec\n";
+
+		auto score = col(results, 1);
+		auto best_feature = std::max_element(cbegin(score),cend(score)) - cbegin(score);
+
+		std::swap(x_T[best_feature], x_T.back());
+		f[i] = x_T.back();
+		x_T.pop_back();
+		if(i < num_of_features) results._Pop_back_n(x_T.size());
+		cout << "selected feature " << best_feature+i  << "\n";
+	}
+}
+
 int main(int argc, char* argv[]) {
+	system("wmic cpu get name");
 	if (argc != 2) {
 		cout << "Usage: " << argv[0] << " data_file" << endl;
 		return -1;
@@ -144,19 +173,21 @@ int main(int argc, char* argv[]) {
 	generate(begin(results[0]), end(results[0]), [&] {return i++; });
 
 	// the learning rate
-	double alpha = 2.5;
-	// lr_method
-	cout << "Iterations for each test: " << max_iters << "\n";
-	for (; alpha > 0.5; alpha-=0.3)
-	{
-		cout << "alpha: " << alpha << endl;
-		auto t1 = chrono::steady_clock::now();
-		results.push_back( lr_without_regularization(x, y, alpha));
-		auto t2 = chrono::steady_clock::now();
-		cout << "duration: " << std::chrono::duration<double>( t2 - t1).count() << "ms\n";
-	}
+	//double alpha = 2.5;
+	//// lr_method
+	//cout << "Iterations for each test: " << max_iters << "\n";
+	//for (; alpha > 0.5; alpha-=0.3)
+	//{
+	//	cout << "alpha: " << alpha << endl;
+	//	auto t1 = chrono::steady_clock::now();
+	//	results.push_back( lr_without_regularization(x, y, alpha));
+	//	auto t2 = chrono::steady_clock::now();
+	//	cout << "duration: " << std::chrono::duration<double>( t2 - t1).count() << " sec\n";
+	//}
+
+	select_significant_features(x, y, 5);
 	ofstream output("output.csv");
-	for(auto& vec: results)
-		output << vec << "\n";
+	output << results << "\n";
+
 	return 0;
 }

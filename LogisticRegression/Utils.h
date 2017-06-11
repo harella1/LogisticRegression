@@ -9,11 +9,20 @@ using std::string;
 
 namespace Utils {
 	template <typename T>
-	ostream& operator <<(ostream& out, const vector<T>& input)
+	inline ostream& operator <<(ostream& out, const vector<T>& input)
 	{
 		std::for_each(cbegin(input), cend(input), [&](T elem) { out << elem << ",";});
 		return out;
 	}
+
+	template <>
+	inline ostream& operator <<(ostream& out, const matrix& input)
+	{
+		for (auto& vec : input)
+			out << vec << "\n";
+		return out;
+	}
+
 
 	template <typename T>
 	T norm(const vector<T>& v1, const vector<T>& v2)
@@ -26,13 +35,29 @@ namespace Utils {
 		return sqrt(sum);
 	}
 
-	inline void normalize_data(matrix& x)
+	inline vector<double> col(const matrix& x, int column)
+	{
+		vector<double> res(x.size());
+		if (column <= x.size())
+			for (size_t i = 0; i < x.size(); i++)
+				res[i] = x[i][column];
+		return res;
+	}
+
+	inline matrix transpose(const matrix& x)
 	{
 		matrix x_T(x[0].size());
 		std::fill(begin(x_T), end(x_T), vector<double>(x.size()));
 		for (size_t i = 0; i < x.size(); i++)
 			for (size_t j = 0; j < x[i].size(); j++)
 				x_T[j][i] = x[i][j];
+		return x_T;
+
+	}
+
+	inline void normalize_data(matrix& x)
+	{
+		auto x_T = transpose(x);
 
 		vector<std::pair<double, double>> min_max(x[0].size());
 //		std::fill(begin(min_max), end(min_max), std::make_pair(0, 0));
