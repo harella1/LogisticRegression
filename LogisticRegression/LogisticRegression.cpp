@@ -5,6 +5,7 @@
 #include "Utils.h"
 
 
+
 using namespace std;
 using namespace Utils;
 
@@ -15,7 +16,7 @@ const double e = 2.718281828;
 const double epsilon = 0.00001;
 
 const int training_size = 300;
-const int max_iters = 500;
+const int max_iters = 201;
 matrix results;
 
 //
@@ -57,7 +58,7 @@ double predict(const vector<double>& Teta, const matrix& x, const vector<double>
 		for (size_t j = 0; j < Teta.size(); ++j)
 			z_i2 += Teta[j] * x[i][j];
 		auto sig = sigmoid(z_i2);
-		if ((sig >= 0.5) && y[i] == 1 || sig < 0.5 && y[i] == 0)
+		if (((sig >= 0.5) && y[i] == 1) || (sig < 0.5 && y[i] == 0))
 			matches++;
 	}
 	return matches / (end - start);
@@ -69,8 +70,8 @@ double predict(const vector<double>& Teta, const matrix& x, const vector<double>
 // where i denotes the ith training row and k denotes the kth feature.
 // Then we know how to update the teta in each iteration:
 // teta(k)(t+1) = teta(k)(t) + alpha * gra
-const vector<double> lr_without_regularization(const matrix& x,	const vector<double>& y, double alpha) {
-	vector<double> costs(max_iters+3);
+const vector<double> lr_without_regularization(const matrix& x,	const vector<double>& y, double alpha, int iters) {
+	vector<double> costs(iters+3);
 
 	int iter = 0;
 
@@ -99,11 +100,10 @@ const vector<double> lr_without_regularization(const matrix& x,	const vector<dou
 			Teta_k[k] = Teta_k[k] + alpha * gradient;
 		}
 		auto cur_cost = cost(Teta_k, y, x);
-		auto dist = step_cost - cur_cost;
 		step_cost = cur_cost;
 		costs[iter+3] = step_cost;
 		iter += 1;
-		if (iter >= max_iters) {
+		if (iter >= iters) {
 			//cout << "Reach max_iters=" << max_iters << endl;
 			break;
 		}
@@ -128,33 +128,40 @@ const vector<double> lr_without_regularization(const matrix& x,	const vector<dou
 }
 
 
-void select_significant_features(const matrix& x, const vector<double>& y, int num_of_features) {
+void select_significant_features(const matrix& x, const vector<double>& y, int num_of_features, int iters) {
 
+	vector<int> indexes(x[0].size()-1);
+	int i = 1;
+	generate(begin(indexes), end(indexes), [&] {return i++; });
+	//x.insert(cbegin(x), indexes);
 	auto x_T = transpose(x);
 
 	matrix f;
 	f.push_back(x_T[0]);
+	auto t1 = chrono::steady_clock::now();
 	for (size_t i = 1; i <= num_of_features; i++)
 	{
 		f.resize(i + 1);
-		auto t1 = chrono::steady_clock::now();
-		for (size_t j = 1; j < x_T.size(); j++)
+		matrix res;
+		for (size_t j = 0; j < indexes.size(); j++)
 		{
-			f[i] = x_T[j];
+			f[i] = x_T[indexes[j]];
 			auto f_vec = transpose(f);
-			results.push_back(lr_without_regularization(f_vec, y, 0.8));
+			res.push_back(lr_without_regularization(f_vec, y, 2, iters));
+			res[j][0] = indexes[j];
 		}
-		cout << "duration: " << std::chrono::duration<double>(chrono::steady_clock::now() - t1).count() << " sec\n";
 
-		auto score = col(results, 1);
+		auto score = col(res, 1);
 		auto best_feature = std::max_element(cbegin(score),cend(score)) - cbegin(score);
 
-		std::swap(x_T[best_feature], x_T.back());
-		f[i] = x_T.back();
-		x_T.pop_back();
-		if(i < num_of_features) results._Pop_back_n(x_T.size());
-		cout << "selected feature " << best_feature+i  << "\n";
+		f[i] = x_T[best_feature];
+		indexes.erase(begin(indexes)+best_feature);
+		remove(begin(indexes), end(indexes), best_feature);
+		results.push_back({(double)i ,res[best_feature][1], res[best_feature][2], res[best_feature][0] });
+		//cout << "selected feature " << res[best_feature][0] << "\n";
 	}
+	auto duration = std::chrono::duration<double>(chrono::steady_clock::now() - t1).count();
+	cout << "duration: " << duration << " sec\n";
 }
 
 int main(int argc, char* argv[]) {
@@ -184,8 +191,12 @@ int main(int argc, char* argv[]) {
 	//	auto t2 = chrono::steady_clock::now();
 	//	cout << "duration: " << std::chrono::duration<double>( t2 - t1).count() << " sec\n";
 	//}
-
-	select_significant_features(x, y, 5);
+	for (int i = 1; i <= max_iters; i+=50)
+	{
+		results.push_back({ (double)i });
+		cout << "num of iterations: " << i << "\n";
+		select_significant_features(x, y, 5 ,i);
+	}
 	ofstream output("output.csv");
 	output << results << "\n";
 

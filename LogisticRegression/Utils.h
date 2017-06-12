@@ -78,6 +78,7 @@ namespace Utils {
 	{
 		auto csv = fstream(csv_file);
 		char c;
+		int index = 1;
 		for (std::string line; std::getline(csv, line); )
 		{
 			std::replace(line.begin(), line.end(), ',', ' ');
@@ -94,6 +95,7 @@ namespace Utils {
 					std::istream_iterator<double>()));
 		}
 		normalize_data(x);
+
 		//csv.clear();
 		//csv.seekg(0, ios::beg);
 
